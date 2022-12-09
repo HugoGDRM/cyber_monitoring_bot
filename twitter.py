@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 
-import json, requests, re
-import text_razor
+import json, re, requests
 
-CYBER_KEYWORD = ['tech', 'cyber', 'war', 'politic', 'security', 'privacy', 'exploit', 'data', 'apt', 'ware', 'attack', 'hack', 'crypt', 'threat', 'compute', 'info', 'telecom']
+def is_cyber_related(word):
+    CYBER_KEYWORD = ['tech', 'cyber', 'war', 'politic', 'security', 'privacy', 'exploit', 'data', 'apt', 'ware', 'attack', 'hack', 'crypt', 'threat', 'compute', 'info', 'telecom']
+    for keyword in CYBER_KEYWORD:
+        return re.search(keyword, word, re.IGNORECASE)
+    return False
 
 class Data:
     '''
@@ -19,9 +22,7 @@ class Data:
         self.retweets = retweets
 
         # Determined afterward
-        self.tweet_score = 0
-        self.user_score = 0
-        self.total_score = 0
+        self.score = 0
         self.topics = []
 
     '''
@@ -33,68 +34,75 @@ class Data:
     '''
     Data qualitative scorer
     '''
-    def compute_score(self):
+    def compute_score(self, text_razor_bot):
         # Red flags
         if self.tweet['possibly_sensitive'] == True or self.user['protected'] == True:
             return
 
-        # Is the tweet contains many entities ?
-        if 'entities' in self.tweet:
-            entities = self.tweet['entities']
-            if 'annotations' in entities:
-                self.score += len(entities['annotations']) / 2
-            if 'urls' in entities:
-                self.score += len(entities['urls']) / 2
-            if 'hashtags' in entities:
-                self.score += len(entities['hashtags']) / 2
-
-        # Context annotations
-        if 'context_annotations' in self.tweet:
-            context_annotations = self.tweet['context_annotations']
-            for ctx in context_annotations:
-                for key in CYBER_KEYWORD:
-                    if re.search(key, ctx['entity']['name'], re.IGNORECASE):
-                        self.score += 1
-                        break
-        
         # Is the tweet french or english ?
         if 'lang' in self.tweet:
             if self.tweet['lang'] == 'en' or self.tweet['lang'] == 'fr':
-                self.score += 3
+                self.score += 2
 
-        # Content + description
-        # Apply topic detection on both tweet's content and user's description to eco API requests
-        topics = self.analyzer.analyze(self.tweet['text'] + ' ' + self.user['description'])
+        # Is the tweet contains multiple entities ?
+        if 'entities' in self.tweet:
+            entities = self.tweet['entities']
+            if 'annotations' in entities:
+                self.score += 1
+            if 'urls' in entities:
+                self.score += 1
+            if 'hashtags' in entities:
+                # Ad or scam flag
+                if len(entities['hashtags']) > 5:
+                    self.score -= 3
+                self.score += 1
+
+        # Context pertinence
+        if 'context_annotations' in self.tweet:
+            context_annotations = self.tweet['context_annotations']
+            for ctx in context_annotations:
+                # Check if context is cybersecurity related
+                if is_cyber_related(ctx['entity']['name']):
+                    self.score += 1
+        
+        # Tweet's content and user's description pertinence
+        # Apply topic detection on both to eco API requests
+        topics = text_razor_bot.analyze(self.user['description'] + '. ' + self.tweet['text'])
         for topic in topics:
-            if topic.score < text_razor.TOPIC_TRESHOLD:
+            # Topic recognition confidence
+            if topic['score'] < text_razor_bot.topic_treshold:
                 break
+
+            # Check if topic is cybersecurity related
+            if is_cyber_related(ctx):
+                self.score += 2
+
             # Save topic
-            self.topics.append({'topic':topic.label, 'score': topic.score})
-            # Compute score
-            for key in CYBER_KEYWORD:
-                if re.search(key, topic.label, re.IGNORECASE):
-                    self.score += 2
-                    break
+            self.topics.append(topic)
 
         # Is the user verified ?
         if self.user['verified'] == True:
-            self.score += 7
+            self.score += 5
 
 class API:
     '''
     API contructor
     
-    :param twitter_token: Twitter's API bearer token
+    :param bearer_token: API bearer token
     '''
-    def __init__(self, twitter_token):
-        self.twitter_token = twitter_token
+    def __init__(self, bearer_token):
+        self.bearer_token = bearer_token
 
     '''
     API query
+
+    :param url: URL to query
+    :param parameters: Parameters to query
     '''
     def query(self, url, parameters):
-        headers = {'Authorization': f'Bearer {self.twitter_token}'}
+        headers = {'Authorization': f'Bearer {self.bearer_token}'}
         resp = requests.request("GET", url, headers=headers, params=parameters)
+        print(resp.content)
         if resp.status_code != 200:
            raise Exception(resp.status_code, resp.text)
 
@@ -102,11 +110,16 @@ class API:
 
     '''
     API search tweets
+
+    :param keywords: Keywords to search
+    :param start_time: Timestamp from where to start searching
+    :param end_time: Timestamp to where to stop searching
+    :param max_result: Requested maximum number of results
     '''
-    def search_tweets(self, search, start_time, end_time, max_result):
-        url = 'https://api.twitter.com/2/tweets/search/recent'
+    def search_tweets(self, keywords, start_time, end_time, max_result):
+        url = 'https://api.twitter.com/2/tweets/keywords/recent'
         parameters = {
-            'query': '(-is:retweet -is:reply -is:quote) (' + search.replace(',', ' OR ') + ')',
+            'query': '(-is:retweet -is:reply -is:quote) (' + keywords.replace(',', ' OR ') + ')',
             'start_time': start_time,
             'end_time': end_time,
             'max_results': max_result,
@@ -117,13 +130,13 @@ class API:
             'next_token': {}
         }
         
-        try:
-            return self.query(url, parameters)
-        except Exception:
-            return None
+        return self.query(url, parameters)
 
     '''
     API search retweets
+
+    :param tweet_id: Tweet's identifier
+    :param max_result: Requested maximum number of results
     '''
     def search_retweets(self, tweet_id, max_result):
         url = f'https://api.twitter.com/2/tweets/{tweet_id}/quote_tweets'
@@ -136,17 +149,19 @@ class API:
             'place.fields': 'contained_within,country,country_code,full_name,geo,id,name,place_type',
             'next_token': {}
         }
-        
-        try:
-            return self.query(url, parameters)
-        except Exception:
-            return None
+
+        return self.query(url, parameters)
     
     '''
     Data fetcher
+
+    :param keywords: Keywords to search
+    :param start_time: Timestamp from where to start searching
+    :param end_time: Timestamp to where to stop searching
+    :param max_result: Requested maximum number of results
     '''
-    def fetch_datas(self, search, start_time, end_time, max_result=10):
-        tweets = self.search_tweets(search, start_time, end_time, max_result)
+    def fetch_datas(self, keywords, start_time, end_time, max_result=10):
+        tweets = self.search_tweets(keywords, start_time, end_time, max_result)
         if tweets is None or 'data' not in tweets:
             return None
 
@@ -166,5 +181,5 @@ class API:
             retweets = self.search_retweets(json_tweet['id'])
 
             datas.append(Data(json_tweet, user, retweets))
-        
+
         return datas
