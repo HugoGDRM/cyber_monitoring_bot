@@ -1,7 +1,6 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-import configparser, json
-
+import configparser
 import text_razor, twitter
 
 if __name__ == '__main__':
@@ -11,9 +10,7 @@ if __name__ == '__main__':
     api = configparser.ConfigParser()
     api.read('api.ini')
 
-    bot = twitter.API(api['twitter']['bearer_token'], api['text_razor']['bearer_token'])
-    data = bot.fetch(config['parameters']['search'], config['parameters']['start_time'], 10)
-    for d in data:
-        print(d)
-        print('======================================')
-    
+    twitter_bot = twitter.API(api['twitter']['bearer_token'])
+    text_razor_bot = text_razor.API(api['text_razor']['bearer_token'])
+
+    datas = twitter_bot.fetch_datas(config['parameters']['search'], config['parameters']['start_time'], config['parameters']['end_time'], 10)
