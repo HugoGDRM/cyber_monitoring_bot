@@ -3,7 +3,7 @@
 import json, re, requests
 
 def is_cyber_related(word):
-    CYBER_KEYWORD = ['tech', 'cyber', 'war', 'politic', 'security', 'privacy', 'exploit', 'data', 'apt', 'ware', 'attack', 'hack', 'crypt', 'threat', 'compute', 'info', 'telecom']
+    CYBER_KEYWORD = ['cyber', 'tech', 'war', 'politic', 'secur', 'privacy', 'exploit', 'data', 'apt', 'ware', 'attack', 'hack', 'crypt', 'threat', 'comput', 'info', 'telecom', 'crime', 'engineer']
     for keyword in CYBER_KEYWORD:
         return re.search(keyword, word, re.IGNORECASE)
     return False
@@ -52,9 +52,6 @@ class Data:
             if 'urls' in entities:
                 self.score += 1
             if 'hashtags' in entities:
-                # Ad or scam flag
-                if len(entities['hashtags']) > 5:
-                    self.score -= 3
                 self.score += 1
 
         # Context pertinence
@@ -65,24 +62,29 @@ class Data:
                 if is_cyber_related(ctx['entity']['name']):
                     self.score += 1
         
-        # Tweet's content and user's description pertinence
-        # Apply topic detection on both to eco API requests
-        topics = text_razor_bot.analyze(self.user['description'] + '. ' + self.tweet['text'])
-        for topic in topics:
-            # Topic recognition confidence
-            if topic['score'] < text_razor_bot.topic_treshold:
-                break
-
-            # Check if topic is cybersecurity related
-            if is_cyber_related(ctx):
-                self.score += 2
-
-            # Save topic
-            self.topics.append(topic)
-
         # Is the user verified ?
         if self.user['verified'] == True:
             self.score += 5
+
+        # Tweet's content and user's description pertinence
+        # Apply topic detection on both to eco API requests
+        topics = text_razor_bot.analyze(self.tweet['text'])
+        if topics is None:
+            return 
+
+        for topic in topics:
+            # Topic recognition confidence
+            if topic['score'] < text_razor_bot.score_treshold:
+                break
+
+            # Check if topic is cybersecurity related
+            if is_cyber_related(topic['label']):
+                self.score += 2
+        
+            # Save high confidence topics
+            self.topics.append(topic)
+
+        
 
 class API:
     '''
@@ -99,12 +101,11 @@ class API:
     :param url: URL to query
     :param parameters: Parameters to query
     '''
+    
     def query(self, url, parameters):
         headers = {'Authorization': f'Bearer {self.bearer_token}'}
         resp = requests.request("GET", url, headers=headers, params=parameters)
-        print(resp.content)
-        if resp.status_code != 200:
-           raise Exception(resp.status_code, resp.text)
+        resp.raise_for_status()
 
         return resp.json()
 
@@ -117,7 +118,7 @@ class API:
     :param max_result: Requested maximum number of results
     '''
     def search_tweets(self, keywords, start_time, end_time, max_result):
-        url = 'https://api.twitter.com/2/tweets/keywords/recent'
+        url = 'https://api.twitter.com/2/tweets/search/recent'
         parameters = {
             'query': '(-is:retweet -is:reply -is:quote) (' + keywords.replace(',', ' OR ') + ')',
             'start_time': start_time,
@@ -178,7 +179,7 @@ class API:
                         user = json_user
 
             # Fetch associated retweets
-            retweets = self.search_retweets(json_tweet['id'])
+            retweets = self.search_retweets(json_tweet['id'], max_result)
 
             datas.append(Data(json_tweet, user, retweets))
 

@@ -11,7 +11,7 @@ class API:
     def __init__(self, bearer_token):
         textrazor.api_key = bearer_token
         self.client = textrazor.TextRazor(extractors=["topics"])
-        self.score_treshold = 0.85
+        self.score_treshold = 0.5
 
     '''
     API analyzer
@@ -19,10 +19,12 @@ class API:
     :param text: Text to analyze
     '''
     def analyze(self, text):
-        try:
-            # Clean HTML
-            self.client.set_cleanup_mode('stripTags')
-            resp = self.client.analyze(text)
-            return resp
-        except textrazor.TextRazorAnalysisException:
+        resp = self.client.analyze(text)
+        if not resp.ok:
             return None
+
+        json_resp = resp.json
+        if 'response' not in json_resp or 'topics' not in json_resp['response']:
+            return None
+        
+        return json_resp['response']['topics']
