@@ -1,7 +1,0 @@
-*
-!.gitignore
-!Dockerfile
-!*.md
-!*.py
-!requirements.txt
-!configuration.ini
