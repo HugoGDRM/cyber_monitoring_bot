@@ -1,0 +1,14 @@
+version: '3.7'
+
+services:
+
+  twitter-bot:
+    image: "twitter-bot"
+    build:
+      context: "twiiter_bot/"
+    volume:
+      - ./twitter_bot/configuration.ini:/app/configuration.ini:ro
+      - ./twitter_bot/api.ini:/app/api.ini
+    networks:
+      - elk
+

@@ -9,4 +9,4 @@ COPY requirements.txt .
 RUN pip3 install -r requirements.txt
 
 # Code
-COPY *.py *.ini ./
+#COPY *.py *.ini ./
