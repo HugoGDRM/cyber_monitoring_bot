@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import json, re, requests
+import json, re, requests, socket, sys
 
 def is_cyber_related(word):
     CYBER_KEYWORD = ['cyber', 'tech', 'war', 'politic', 'secur', 'privacy', 'exploit', 'data', 'apt', 'ware', 'attack', 'hack', 'crypt', 'threat', 'comput', 'info', 'telecom', 'crime', 'engineer']
@@ -11,7 +11,7 @@ def is_cyber_related(word):
 class Data:
     '''
     Data contructor
-    
+
     :param tweet: The json that represent the tweet
     :param user: The json that represent the user
     :param retweets: The json that represent the retweets
@@ -30,7 +30,7 @@ class Data:
     '''
     def __str__(self):
         return json.dumps(self, default=lambda o: o.__dict__, indent=4)
-    
+
     '''
     Data qualitative scorer
     '''
@@ -61,7 +61,7 @@ class Data:
                 # Check if context is cybersecurity related
                 if is_cyber_related(ctx['entity']['name']):
                     self.score += 1
-        
+
         # Is the user verified ?
         if self.user['verified'] == True:
             self.score += 5
@@ -70,7 +70,7 @@ class Data:
         # Apply topic detection on both to eco API requests
         topics = text_razor_bot.analyze(self.tweet['text'])
         if topics is None:
-            return 
+            return
 
         for topic in topics:
             # Topic recognition confidence
@@ -80,16 +80,31 @@ class Data:
             # Check if topic is cybersecurity related
             if is_cyber_related(topic['label']):
                 self.score += 2
-        
+
             # Save high confidence topics
             self.topics.append(topic)
 
-        
+    def send(self):
+        try:
+            sock = socket.socket()
+        except socket.error as err:
+            print('Socket error because of %s', %(err))
+        port = 50000
+        address = "logstash"
+
+        try:
+            sock.connect((address, port))
+            sock.send(json.dumps(self, default=lambda o: o.__dict__, indent=4))
+        except socket.gaierror:
+            print('There an error resolving the host')
+
+        sys.exit()
+        sock.close()
 
 class API:
     '''
     API contructor
-    
+
     :param bearer_token: API bearer token
     '''
     def __init__(self, bearer_token):
@@ -101,7 +116,7 @@ class API:
     :param url: URL to query
     :param parameters: Parameters to query
     '''
-    
+
     def query(self, url, parameters):
         headers = {'Authorization': f'Bearer {self.bearer_token}'}
         resp = requests.request("GET", url, headers=headers, params=parameters)
@@ -130,7 +145,7 @@ class API:
             'place.fields': 'contained_within,country,country_code,full_name,geo,id,name,place_type',
             'next_token': {}
         }
-        
+
         return self.query(url, parameters)
 
     '''
@@ -152,7 +167,7 @@ class API:
         }
 
         return self.query(url, parameters)
-    
+
     '''
     Data fetcher
 
@@ -170,7 +185,7 @@ class API:
 
         datas = []
         for json_tweet in tweets['data']:
-            user, retweets = None, None, 
+            user, retweets = None, None,
 
             # Get associated user
             if there_is_users:

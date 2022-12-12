@@ -13,10 +13,9 @@ if __name__ == '__main__':
     # Bots
     twitter_bot = twitter.API(api['twitter']['bearer_token'])
     text_razor_bot = text_razor.API(api['text_razor']['bearer_token'])
-    
+
     # Fetch and analyze
     datas = twitter_bot.fetch_datas(param['parameters']['search'], param['parameters']['start_time'],
                                     param['parameters']['end_time'], param['parameters']['max_result'])
     for data in datas:
-        data.compute_score(text_razor_bot)
-        print(data)
+        data.send()
