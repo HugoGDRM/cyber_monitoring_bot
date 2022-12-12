@@ -10,6 +10,7 @@ services:
   # subsequent runs, the service simply returns immediately, without performing
   # any modification to existing users.
   setup:
+    image: setup
     build:
       context: setup/
       args:
@@ -35,6 +36,7 @@ services:
       - elasticsearch
 
   elasticsearch:
+    image: elasticsearch
     build:
       context: elasticsearch/
       args:
@@ -59,6 +61,7 @@ services:
       - elk
 
   logstash:
+    image: logstash
     build:
       context: logstash/
       args:
@@ -81,6 +84,7 @@ services:
       - elasticsearch
 
   kibana:
+    image: kibana
     build:
       context: kibana/
       args:
