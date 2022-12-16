@@ -5,10 +5,11 @@ services:
   twitter-bot:
     image: "twitter-bot"
     build:
-      context: "twiiter_bot/"
-    volume:
-      - ./twitter_bot/configuration.ini:/app/configuration.ini:ro
-      - ./twitter_bot/api.ini:/app/api.ini
+      context: "twitter_bot/"
+    volumes:
+      - ./twitter_bot/:/app/:ro
     networks:
       - elk
 
+networks:
+  elk:

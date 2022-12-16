@@ -88,9 +88,9 @@ class Data:
         try:
             sock = socket.socket()
         except socket.error as err:
-            print('Socket error because of %s', %(err))
+            print('Socket error because of',file=sys.stderr)
         port = 50000
-        address = "logstash"
+        address = "127.0.0.1"
 
         try:
             sock.connect((address, port))
