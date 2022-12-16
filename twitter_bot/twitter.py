@@ -120,7 +120,9 @@ class API:
     def query(self, url, parameters):
         headers = {'Authorization': f'Bearer {self.bearer_token}'}
         resp = requests.request("GET", url, headers=headers, params=parameters)
-        resp.raise_for_status()
+        if resp.status_code != 200:
+           raise Exception(resp.status_code, resp.text)
+
 
         return resp.json()
 

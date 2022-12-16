@@ -18,4 +18,5 @@ if __name__ == '__main__':
     datas = twitter_bot.fetch_datas(param['parameters']['search'], param['parameters']['start_time'],
                                     param['parameters']['end_time'], param['parameters']['max_result'])
     for data in datas:
-        data.send()
+        data.compute_score(text_razor_bot)
+        print(data)
