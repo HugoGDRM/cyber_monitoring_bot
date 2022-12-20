@@ -2,13 +2,6 @@ version: '3.7'
 
 services:
 
-  # The 'setup' service runs a one-off script which initializes users inside
-  # Elasticsearch — such as 'logstash_internal' and 'kibana_system' — with the
-  # values of the passwords defined in the '.env' file.
-  #
-  # This task is only performed during the *initial* startup of the stack. On all
-  # subsequent runs, the service simply returns immediately, without performing
-  # any modification to existing users.
   setup:
     image: setup
     build:
@@ -100,7 +93,6 @@ services:
 
 networks:
   elk:
-    driver: overlay
 
 volumes:
   nfs-kibana-config:
