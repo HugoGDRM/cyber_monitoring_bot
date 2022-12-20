@@ -42,8 +42,8 @@ services:
       args:
         ELASTIC_VERSION: ${ELASTIC_VERSION}
     volumes:
-      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z
-      - elasticsearch:/usr/share/elasticsearch/data:Z
+      - nfs-elasticsearch-config:/usr/share/elasticsearch/config/elasticsearch.yml:ro,Z
+      - nfs-elasticsearch-data:/usr/share/elasticsearch/data:Z
     ports:
       - 9200:9200
       - 9300:9300
@@ -67,9 +67,7 @@ services:
       args:
         ELASTIC_VERSION: ${ELASTIC_VERSION}
     volumes:
-      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro,Z
-      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro,Z
-      - ./logstash/templates:/usr/share/logstash/templates:ro,Z
+      - nfs-logstash-data:/usr/share/logstash:ro,Z
     ports:
       - 5044:5044
       - 50000:50000/tcp
@@ -90,7 +88,7 @@ services:
       args:
         ELASTIC_VERSION: ${ELASTIC_VERSION}
     volumes:
-      - ./kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro,Z
+      - nfs-kibana-config:/usr/share/kibana/config/kibana.yml
     ports:
       - 5601:5601
     environment:
@@ -105,6 +103,37 @@ networks:
     driver: overlay
 
 volumes:
+  nfs-kibana-config:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.1.xx,nolock,soft,ro
+      device: ./kibana/config/kibana.yml
+  nfs-logstash-data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.1.xx,nolock,soft,ro
+      device: ./logstash/
+  nfs-elasticsearch-config:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.1.xx,nolock,soft,ro
+      device: ./elasticsearch/config/elasticsearch.ym
+  nfs-elasticsearch-data:
+    driver: local
+    driver_opts:
+     type: nfs
+     o: addr=192.168.1.xx,nolock,soft,ro
+     device: /usr/share/elasticsearch/data:Z
+  nfs-kibana-config:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: addr=192.168.1.xx,nolock,soft,rw
+      device: :./kibana/config/kibana.yml
+
   setup:
   elasticsearch:
   portainer_data:
