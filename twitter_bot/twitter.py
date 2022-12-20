@@ -84,10 +84,11 @@ class Data:
             # Save high confidence topics
             self.topics.append(topic)
 
+
     def send(self):
         try:
             sock = socket.socket()
-        except socket.error as err:
+        except sock.error as err:
             print('Socket error because of',file=sys.stderr)
         port = 50000
         address = "127.0.0.1"
@@ -95,10 +96,9 @@ class Data:
         try:
             sock.connect((address, port))
             sock.send(json.dumps(self, default=lambda o: o.__dict__, indent=4))
-        except socket.gaierror:
+        except:
             print('There an error resolving the host')
-
-        sys.exit()
+            pass
         sock.close()
 
 class API:
@@ -120,9 +120,7 @@ class API:
     def query(self, url, parameters):
         headers = {'Authorization': f'Bearer {self.bearer_token}'}
         resp = requests.request("GET", url, headers=headers, params=parameters)
-        if resp.status_code != 200:
-           raise Exception(resp.status_code, resp.text)
-
+        resp.raise_for_status()
 
         return resp.json()
 
