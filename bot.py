@@ -24,7 +24,7 @@ if __name__ == '__main__':
     param['parameters']['start_time'] = compute_date(start)
 
     end = datetime.datetime.now()
-    param['parameters']['start_time'] = compute_date(end)
+    param['parameters']['end_time'] = compute_date(end)
 
     # Bots
     twitter_bot = twitter.API(api['twitter']['bearer_token'])
